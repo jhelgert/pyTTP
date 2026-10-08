@@ -147,7 +147,8 @@ def solve(
             deadline,
             np.random.default_rng(seed),
             polish,
-            patience=lns_patience,
+            # With a time limit the whole budget is used; the patience only applies without one.
+            patience=lns_patience if time_limit is None else None,
         )
         logger.info("finished: %d", best.objective)
         return best

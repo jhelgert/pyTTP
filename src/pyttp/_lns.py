@@ -277,11 +277,14 @@ def improve(
     deadline: Deadline,
     rng: np.random.Generator,
     polish: Callable[[Solution, Deadline], Solution],
-    patience: int = 100,
+    patience: int | None = 100,
     sub_time_limit: float = 2.0,
     polish_every: int = 25,
 ) -> Solution:
     """Improve a feasible solution by LNS until the deadline or ``patience`` fruitless steps.
+
+    ``patience=None`` never stops because of fruitless steps (only the deadline or a proof of
+    optimality ends the search).
 
     ``best`` must satisfy all rules of the TTP. The result always does, too. When a
     neighborhood that covers the whole problem is solved to optimality, the solution is
@@ -291,7 +294,7 @@ def improve(
     neighborhoods = make_neighborhoods(n, rounds)
     stall = 0
     step = 0
-    while stall < patience and not deadline.expired:
+    while (patience is None or stall < patience) and not deadline.expired:
         kind = neighborhoods[step % len(neighborhoods)]
         step += 1
         if kind.name == "window":

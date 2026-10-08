@@ -64,12 +64,10 @@ def test_time_limit_is_respected(rng, phase2):
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("phase2", ["lns", "mip"])
-def test_a_generous_limit_gives_the_same_result_as_no_limit(rng, phase2):
+def test_a_generous_limit_gives_the_same_result_as_no_limit(rng):
     d = random_distances(rng, 6, symmetric=True)
-    options = {"max_k": 3, "phase2": phase2, "seed": 0, "lns_patience": 4}
-    unlimited = pyttp.solve(d, **options)
-    limited = pyttp.solve(d, time_limit=600.0, **options)
+    unlimited = pyttp.solve(d, max_k=3, phase2="mip", seed=0)
+    limited = pyttp.solve(d, max_k=3, phase2="mip", seed=0, time_limit=600.0)
     assert limited.objective == unlimited.objective
     np.testing.assert_array_equal(limited.schedule, unlimited.schedule)
 

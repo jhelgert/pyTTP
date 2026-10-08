@@ -402,3 +402,20 @@ def test_model_never_creates_repeaters_when_everything_is_free():
     model = _lns.FreeCellModel(schedule, d, 3, np.ones(schedule.shape, dtype=bool))
     assert model.solve(20) == OptimizationStatus.OPTIMAL
     assert pyttp.is_feasible(model.new_schedule(), 3)
+
+
+def test_with_a_time_limit_the_whole_budget_is_used_despite_a_tiny_patience(rng):
+    """The patience only applies without a time limit: a budget is meant to be spent."""
+    d = random_distances(rng, 8, symmetric=True)
+    started = time.monotonic()
+    solution = pyttp.solve(d, max_k=3, time_limit=2.5, lns_patience=1, seed=0)
+    assert time.monotonic() - started >= 2.0
+    assert pyttp.is_feasible(solution.schedule, 3)
+
+
+def test_without_a_time_limit_the_patience_ends_the_search(rng):
+    d = random_distances(rng, 8, symmetric=True)
+    started = time.monotonic()
+    solution = pyttp.solve(d, max_k=3, lns_patience=2, seed=0)
+    assert time.monotonic() - started < 30
+    assert pyttp.is_feasible(solution.schedule, 3)
