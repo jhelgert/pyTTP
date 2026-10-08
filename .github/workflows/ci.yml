@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+      - name: ruff
+        run: |
+          uv run --no-project --with ruff ruff check .
+          uv run --no-project --with ruff ruff format --check --exclude README.md .
+      - name: clang-format
+        run: |
+          uv tool install clang-format
+          clang-format --dry-run --Werror src/cpp/*.cpp src/cpp/*.hpp
+      - name: pyrefly
+        run: uv run pyrefly check
+
+  clang-tidy:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+      - name: Configure (exports compile_commands.json)
+        run: |
+          uv sync
+          uv run cmake -S . -B build/tidy -DCMAKE_BUILD_TYPE=Release -DPython_EXECUTABLE="$PWD/.venv/bin/python" -Dnanobind_DIR="$(uv run python -m nanobind --cmake_dir)" -DPYTTP_NATIVE=OFF
+      - name: clang-tidy
+        run: |
+          sudo apt-get update && sudo apt-get install -y clang-tidy
+          clang-tidy -p build/tidy --warnings-as-errors='*' src/cpp/*.cpp
+
+  test:
+    name: test (${{ matrix.os }}, py${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-15, macos-15-intel, windows-2025]
+        python: ["3.11", "3.14"]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # setuptools-scm needs the tags
+      - uses: astral-sh/setup-uv@v10
+      - name: Install (builds the extension)
+        run: uv sync --python ${{ matrix.python }}
+        env:
+          CMAKE_ARGS: -DPYTTP_NATIVE=OFF
+      - name: Test
+        run: uv run pytest
