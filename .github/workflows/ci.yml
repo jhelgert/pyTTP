@@ -59,7 +59,6 @@ jobs:
           - macos-26
           - macos-26-intel
           - macos-latest
-          - windows-2022
           - windows-2025
         python: ["3.11", "3.15"]
     steps:

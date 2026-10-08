@@ -46,7 +46,6 @@ jobs:
           - { os: macos-26, publish: false }
           - { os: macos-latest, publish: false }
           - { os: windows-2025, publish: true } # Windows AMD64
-          - { os: windows-2022, publish: false }
     steps:
       - uses: actions/checkout@v7
         with:
