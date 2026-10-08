@@ -27,7 +27,7 @@ trades solution quality for speed.
 pip install pyttp
 ```
 
-Wheels are published for CPython 3.11 to 3.15 on Linux (glibc, x86_64 and aarch64), macOS
+Wheels are published for CPython 3.11 to 3.14 on Linux (glibc, x86_64 and aarch64), macOS
 (x86_64 and arm64) and Windows (x86_64).
 
 ## Example

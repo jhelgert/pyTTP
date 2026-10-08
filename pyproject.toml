@@ -21,7 +21,6 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
-    "Programming Language :: Python :: 3.15",
     "Topic :: Scientific/Engineering :: Mathematics",
     "Typing :: Typed",
 ]
@@ -83,7 +82,7 @@ python-version = "3.11"
 replace-imports-with-any = ["mip", "mip.*"]
 
 [tool.cibuildwheel]
-build = ["cp311-*", "cp312-*", "cp313-*", "cp314-*", "cp315-*"]
+build = ["cp311-*", "cp312-*", "cp313-*", "cp314-*"]
 # No musllinux: python-mip requires cbcbox, which has no musllinux wheels (cibuildwheel builds it by default).
 skip = ["*-win32", "*-manylinux_i686", "*-win_arm64", "*-musllinux_*"]
 build-frontend = "build[uv]"
