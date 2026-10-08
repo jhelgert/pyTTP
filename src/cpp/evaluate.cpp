@@ -36,6 +36,17 @@ bool satisfies_stand_limits(ConstScheduleView schedule, int max_k) noexcept {
   return true;
 }
 
+bool has_repeaters(ConstScheduleView schedule) noexcept {
+  for (std::size_t team = 0; team < schedule.rows; ++team) {
+    for (std::size_t round = 1; round < schedule.cols; ++round) {
+      if (opponent(schedule(team, round)) == opponent(schedule(team, round - 1))) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 bool has_valid_entries(ConstScheduleView schedule) noexcept {
   const std::size_t n = schedule.rows;
   if (n < 2 || schedule.cols != 2 * n - 2) {

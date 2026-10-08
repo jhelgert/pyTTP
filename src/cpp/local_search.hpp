@@ -42,9 +42,9 @@ struct Candidate {
 };
 
 /// Scan every neighborhood completely and return, per neighborhood, the best
-/// neighbor that is strictly better than `schedule` and satisfies the stand
-/// limits. Neighborhoods without such a neighbor contribute no candidate.
-/// Candidates are ordered by neighborhood.
+/// neighbor that is strictly better than `schedule` and feasible, i.e. satisfies the
+/// stand limits and has no repeaters. Neighborhoods without such a neighbor contribute no
+/// candidate. Candidates are ordered by neighborhood.
 [[nodiscard]] std::vector<Candidate> local_search_step(ConstScheduleView schedule,
                                                        ConstDistanceView distances, int max_k);
 

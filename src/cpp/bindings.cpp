@@ -93,6 +93,14 @@ NB_MODULE(_core, m) {
       "schedule"_a, "max_k"_a);
 
   m.def(
+      "has_repeaters",
+      [](const ScheduleIn& schedule) {
+        check_schedule(schedule);
+        return pyttp::has_repeaters(view_of(schedule));
+      },
+      "schedule"_a);
+
+  m.def(
       "is_valid_schedule",
       [](const ScheduleIn& schedule) { return pyttp::is_valid_schedule(view_of(schedule)); },
       "schedule"_a);

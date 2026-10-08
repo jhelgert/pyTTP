@@ -2,8 +2,8 @@
 
 from importlib.metadata import PackageNotFoundError, version
 
-from ._core import is_valid_schedule, objective, satisfies_stand_limits
-from .schedule import Solution, canonical_schedule, format_schedule, print_schedule
+from ._core import has_repeaters, is_valid_schedule, objective, satisfies_stand_limits
+from .schedule import Solution, canonical_schedule, format_schedule, is_feasible, print_schedule
 from .solver import solve
 
 try:
@@ -16,6 +16,8 @@ __all__ = [
     "__version__",
     "canonical_schedule",
     "format_schedule",
+    "has_repeaters",
+    "is_feasible",
     "is_valid_schedule",
     "objective",
     "print_schedule",

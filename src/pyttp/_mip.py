@@ -9,6 +9,7 @@ import numpy as np
 from mip import MINIMIZE, Model, OptimizationStatus, xsum
 from numpy.typing import NDArray
 
+from ._deadline import Deadline
 from .schedule import Schedule, Solution
 
 logger = logging.getLogger("pyttp")
@@ -31,27 +32,34 @@ class TTPMip:
         self.model.verbose = 0
         self.model.max_mip_gap = max_gap
 
-    def improve(self, objective: int, schedule: Schedule) -> Solution | None:
+    def improve(
+        self, objective: int, schedule: Schedule, deadline: Deadline | None = None
+    ) -> Solution | None:
         """Alternate between optimizing the pairings and the home-away pattern.
+
+        A neighborhood that yields no solution (for instance because the time ran out) is
+        skipped; the other one is still tried.
 
         Returns the improved schedule, or ``None`` if the start could not be improved.
         """
+        deadline = deadline or Deadline(None)
         best_objective, best_schedule = objective, schedule
         improved = True
-        while improved:
+        while improved and not deadline.expired:
             improved = False
             for label, fix in (
                 ("pairings", self._fix_pairings),
                 ("home-away", self._fix_pattern),
             ):
+                if deadline.expired:
+                    break
                 constraints = fix(best_schedule)
-                status = self.model.optimize()
+                self.model.max_seconds = deadline.remaining()
                 try:
-                    if status not in (
-                        OptimizationStatus.OPTIMAL,
-                        OptimizationStatus.FEASIBLE,
-                    ):
-                        return self._result(objective, best_objective, best_schedule)
+                    status = self.model.optimize()
+                    if status not in (OptimizationStatus.OPTIMAL, OptimizationStatus.FEASIBLE):
+                        logger.info("phase II (%s): no solution (%s)", label, status.name)
+                        continue
                     value = round(self.model.objective_value)
                     candidate = self._extract_schedule()
                 finally:
@@ -61,12 +69,16 @@ class TTPMip:
                     logger.info("phase II (%s): %d", label, value)
         return self._result(objective, best_objective, best_schedule)
 
-    def feasible_start(self) -> Solution:
+    def feasible_start(self, deadline: Deadline | None = None) -> Solution:
         """Solve the model without fixing anything to obtain any feasible schedule."""
+        deadline = deadline or Deadline(None)
+        self.model.max_seconds = deadline.remaining()
         status = self.model.optimize()
-        if status not in (OptimizationStatus.OPTIMAL, OptimizationStatus.FEASIBLE):
-            raise ValueError(f"no feasible schedule exists for max_k={self.max_k}")
-        return Solution(round(self.model.objective_value), self._extract_schedule())
+        if status in (OptimizationStatus.OPTIMAL, OptimizationStatus.FEASIBLE):
+            return Solution(round(self.model.objective_value), self._extract_schedule())
+        if deadline.expired:
+            raise TimeoutError("time limit reached before a feasible schedule was found")
+        raise ValueError(f"no feasible schedule exists for max_k={self.max_k}")
 
     @staticmethod
     def _result(start: int, best: int, schedule: Schedule) -> Solution | None:

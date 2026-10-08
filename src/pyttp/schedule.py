@@ -15,7 +15,16 @@ from typing import TypeAlias
 import numpy as np
 from numpy.typing import NDArray
 
-__all__ = ["Schedule", "Solution", "canonical_schedule", "format_schedule", "print_schedule"]
+from . import _core
+
+__all__ = [
+    "Schedule",
+    "Solution",
+    "canonical_schedule",
+    "format_schedule",
+    "is_feasible",
+    "print_schedule",
+]
 
 Schedule: TypeAlias = NDArray[np.int32]
 
@@ -60,6 +69,16 @@ def canonical_schedule(n: int) -> Schedule:
             first_half[home - 1, r] = away
             first_half[away - 1, r] = -home
     return np.hstack((first_half, -first_half))
+
+
+def is_feasible(schedule: Schedule, max_k: int) -> bool:
+    """Check all rules of the TTP: a valid double round robin, at most ``max_k`` consecutive
+    home games and road trips, and no repeaters."""
+    return (
+        _core.is_valid_schedule(schedule)
+        and _core.satisfies_stand_limits(schedule, max_k)
+        and not _core.has_repeaters(schedule)
+    )
 
 
 def format_schedule(schedule: Schedule, team_names: Sequence[str] | None = None) -> str:

@@ -46,7 +46,7 @@ distances = np.array(
     dtype=np.int32,
 )
 
-solution = pyttp.solve(distances, max_k=3)
+solution = pyttp.solve(distances, max_k=3, time_limit=60)  # time_limit is optional
 print(solution.objective)  # 8276
 pyttp.print_schedule(solution.schedule, team_names)
 ```
@@ -69,9 +69,11 @@ and a negative sign an away game.
 
 | | |
 |---|---|
-| `pyttp.solve(distances, max_k=3, max_phase1_runs=10, max_mip_gap=0.05)` | Run the hybrid heuristic, returns a `Solution(objective, schedule)`. |
+| `pyttp.solve(distances, max_k=3, max_phase1_runs=10, max_mip_gap=0.05, time_limit=None)` | Run the hybrid heuristic, returns a `Solution(objective, schedule)`. With `time_limit` (seconds) it returns the best schedule found when the budget is used up. |
 | `pyttp.objective(schedule, distances)` | Total travel distance of a schedule. |
 | `pyttp.satisfies_stand_limits(schedule, max_k)` | Checks the home stand and road trip limit. |
+| `pyttp.has_repeaters(schedule)` | True if some pair of teams plays in two consecutive rounds (forbidden). |
+| `pyttp.is_feasible(schedule, max_k)` | All rules at once: valid tournament, stand limits, no repeaters. |
 | `pyttp.is_valid_schedule(schedule)` | Checks that a schedule is a valid double round robin. |
 | `pyttp.canonical_schedule(n)` | The canonical start schedule. |
 | `pyttp.neighborhoods` | `swap_homes`, `swap_rounds`, `swap_teams`, `partial_swap_rounds`, `partial_swap_teams`. |
