@@ -1,0 +1,104 @@
+[build-system]
+requires = ["scikit-build-core>=0.11", "nanobind>=2.9", "setuptools-scm>=8"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "pyttp"
+dynamic = ["version"]
+description = "Hybrid local search and MIP heuristic for the traveling tournament problem"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Jonathan Helgert" }]
+requires-python = ">=3.11"
+keywords = ["traveling tournament problem", "sports scheduling", "local search", "mip", "optimization"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: C++",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Typing :: Typed",
+]
+dependencies = ["numpy>=1.26", "mip[highs]>=2.0"]
+
+[project.urls]
+Homepage = "https://github.com/jhelgert/pyTTP"
+Issues = "https://github.com/jhelgert/pyTTP/issues"
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff", "pyrefly", "nanobind>=2.9"]
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+cmake.version = ">=3.26"
+wheel.packages = ["src/pyttp"]
+build-dir = "build/{wheel_tag}"
+editable.mode = "redirect"
+sdist.include = ["src/cpp/*"]
+sdist.exclude = [".github", "build"]
+
+[tool.scikit-build.metadata.version]
+provider = "scikit_build_core.metadata.setuptools_scm"
+
+[tool.setuptools_scm]
+
+[tool.uv]
+# Rebuild the extension when the native sources change (matters for `uv sync`).
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "CMakeLists.txt" },
+    { file = "src/cpp/**" },
+    { git = { commit = true, tags = true } },
+]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = ["-ra", "--strict-markers", "--strict-config"]
+filterwarnings = ["error"]
+markers = ["slow: end-to-end tests that run the MIP solver"]
+
+[tool.ruff]
+src = ["src", "tests", "benchmarks"]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint.isort]
+known-first-party = ["pyttp", "helpers"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "C4", "RUF", "NPY", "PT"]
+
+[tool.pyrefly]
+project-includes = ["src", "tests", "benchmarks"]
+search-path = ["src", "tests"]
+python-version = "3.11"
+# python-mip is annotated for its own operator syntax poorly, check our code against Any.
+replace-imports-with-any = ["mip", "mip.*"]
+
+[tool.cibuildwheel]
+build = ["cp311-*", "cp312-*", "cp313-*", "cp314-*", "cp315-*"]
+# No musllinux: python-mip requires cbcbox, which has no musllinux wheels (cibuildwheel builds it by default).
+skip = ["*-win32", "*-manylinux_i686", "*-win_arm64", "*-musllinux_*"]
+build-frontend = "build[uv]"
+test-requires = ["pytest"]
+test-command = "pytest {project}/tests"
+# Wheels must run on every CPU of their platform: no -march=native.
+environment = { CMAKE_ARGS = "-DPYTTP_NATIVE=OFF" }
+
+[tool.cibuildwheel.macos]
+environment = { CMAKE_ARGS = "-DPYTTP_NATIVE=OFF", MACOSX_DEPLOYMENT_TARGET = "11.0" }
+
+[[tool.cibuildwheel.overrides]]
+select = "*_x86_64"
+environment = { CMAKE_ARGS = "-DPYTTP_NATIVE=OFF -DPYTTP_BASELINE=x86-64-v2" }
+
+[[tool.cibuildwheel.overrides]]
+select = "*-macosx_x86_64"
+environment = { CMAKE_ARGS = "-DPYTTP_NATIVE=OFF -DPYTTP_BASELINE=x86-64-v2", MACOSX_DEPLOYMENT_TARGET = "10.15" }

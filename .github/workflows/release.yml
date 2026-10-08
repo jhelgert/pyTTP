@@ -1,0 +1,78 @@
+name: Build wheels and publish
+
+on:
+  push:
+    tags: ["v*"]
+  pull_request:
+    paths:
+      - ".github/workflows/release.yml"
+      - "pyproject.toml"
+      - "CMakeLists.txt"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sdist:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v10.2.0
+      - run: uv build --sdist
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist-sdist
+          path: dist/*.tar.gz
+
+  wheels:
+    name: wheels (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # `publish` marks the one runner per platform whose wheels are uploaded to the index.
+        # The other runners build the same wheels on a different image to check they work there.
+        include:
+          - { os: ubuntu-24.04, publish: true } # manylinux x86_64
+          - { os: ubuntu-26.04, publish: false }
+          - { os: ubuntu-24.04-arm, publish: true } # manylinux aarch64
+          - { os: ubuntu-26.04-arm, publish: false }
+          - { os: macos-15-intel, publish: true } # macOS x86_64
+          - { os: macos-26-intel, publish: false }
+          - { os: macos-15, publish: true } # macOS arm64
+          - { os: macos-26, publish: false }
+          - { os: macos-latest, publish: false }
+          - { os: windows-2025, publish: true } # Windows AMD64
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v10.2.0 # the "build[uv]" frontend needs uv on the host (macOS, Windows)
+      - uses: pypa/cibuildwheel@v4.3.0
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.publish && 'dist' || 'check' }}-wheels-${{ matrix.os }}
+          path: wheelhouse/*.whl
+
+  publish-testpypi:
+    needs: [sdist, wheels]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/pyttp
+    permissions:
+      id-token: write # Trusted Publishing (OIDC), no API token needed
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: true

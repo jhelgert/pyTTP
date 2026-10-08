@@ -1,0 +1,112 @@
+name: Benchmark
+
+# Compares the performance of the native core between the base and the head of a change.
+# Both versions are built and measured on the same runner, in alternating rounds, so the
+# result does not depend on how fast the runner happens to be.
+
+on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "CMakeLists.txt"
+      - "pyproject.toml"
+      - "benchmarks/**"
+      - ".github/workflows/benchmark.yml"
+  push:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      base:
+        description: "Git ref to compare against (default: previous commit)"
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: benchmark-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Same flags as the release wheels. Pretend a version so that shallow metadata is not an issue.
+  CMAKE_ARGS: -DPYTTP_NATIVE=OFF
+  SETUPTOOLS_SCM_PRETEND_VERSION: "0.0.0"
+  ROUNDS: 3
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v10.2.0
+
+      - name: Determine base commit
+        id: base
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          INPUT_BASE: ${{ inputs.base }}
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then
+            base="$PR_BASE"
+          elif [ -n "$INPUT_BASE" ]; then
+            base="$(git rev-parse "$INPUT_BASE")"
+          else
+            base="$(git rev-parse HEAD~1 2>/dev/null || true)"
+          fi
+          echo "sha=$base" >> "$GITHUB_OUTPUT"
+          echo "Base commit: ${base:-<none>}"
+
+      - name: Build head
+        run: |
+          uv venv --python 3.13 .venv-head
+          uv pip install --python .venv-head/bin/python numpy "mip[highs]" .
+
+      - name: Build base
+        id: build_base
+        if: steps.base.outputs.sha != ''
+        run: |
+          git worktree add ../base "${{ steps.base.outputs.sha }}"
+          if [ ! -f ../base/CMakeLists.txt ]; then
+            echo "Base commit predates the C++ core, nothing to compare against."
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          uv venv --python 3.13 .venv-base
+          uv pip install --python .venv-base/bin/python numpy "mip[highs]" ../base
+          echo "available=true" >> "$GITHUB_OUTPUT"
+
+      - name: Run benchmarks
+        run: |
+          mkdir -p bench-results
+          for round in $(seq 1 "$ROUNDS"); do
+            .venv-head/bin/python benchmarks/bench_core.py --repeat 5 --output "bench-results/head-$round.json" > /dev/null
+            if [ "${{ steps.build_base.outputs.available }}" = "true" ]; then
+              # The benchmark script of the head is run against the base build.
+              .venv-base/bin/python benchmarks/bench_core.py --repeat 5 --output "bench-results/base-$round.json" > /dev/null
+            fi
+          done
+
+      - name: Report
+        run: |
+          {
+            if [ "${{ steps.build_base.outputs.available }}" = "true" ]; then
+              .venv-head/bin/python benchmarks/compare.py --annotations \
+                --base bench-results/base-*.json --head bench-results/head-*.json
+            else
+              echo "### Core benchmark (no baseline available)"
+              echo
+              echo '```'
+              .venv-head/bin/python benchmarks/bench_core.py --repeat 5
+              echo '```'
+            fi
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: benchmark-${{ github.sha }}
+          path: bench-results/*.json
