@@ -3,12 +3,16 @@ name: Build wheels and publish
 on:
   push:
     tags: ["v*"]
-  pull_request:
+  pull_request: # only a smoke build, see `wheels-smoke`
     paths:
       - ".github/workflows/release.yml"
       - "pyproject.toml"
       - "CMakeLists.txt"
   workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -27,31 +31,49 @@ jobs:
           name: dist-sdist
           path: dist/*.tar.gz
 
+  # Pull requests only check that the packaging still builds: one platform, one Python.
+  wheels-smoke:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pypa/cibuildwheel@v4.3.0
+        env:
+          CIBW_BUILD: cp312-manylinux_x86_64
+
+  # Tags and manual runs build everything.
   wheels:
+    if: github.event_name != 'pull_request'
     name: wheels (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        # `publish` marks the one runner per platform whose wheels are uploaded to the index.
-        # The other runners build the same wheels on a different image to check they work there.
+        # `publish` marks the runners whose wheels are uploaded to the index. The others only
+        # check that the wheel builds and imports on a newer image.
         include:
           - { os: ubuntu-24.04, publish: true } # manylinux x86_64
-          - { os: ubuntu-26.04, publish: false }
           - { os: ubuntu-24.04-arm, publish: true } # manylinux aarch64
-          - { os: ubuntu-26.04-arm, publish: false }
           - { os: macos-15-intel, publish: true } # macOS x86_64
-          - { os: macos-26-intel, publish: false }
           - { os: macos-15, publish: true } # macOS arm64
-          - { os: macos-26, publish: false }
-          - { os: macos-latest, publish: false }
           - { os: windows-2025, publish: true } # Windows AMD64
+          - { os: macos-26, publish: false, build: "cp314-macosx_arm64" }
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: astral-sh/setup-uv@v10.2.0 # the "build[uv]" frontend needs uv on the host (macOS, Windows)
-      - uses: pypa/cibuildwheel@v4.3.0
+      - name: Build wheels (config from pyproject.toml)
+        if: matrix.publish
+        uses: pypa/cibuildwheel@v4.3.0
+      - name: Check build on a newer image (one wheel, import test only)
+        if: ${{ !matrix.publish }}
+        uses: pypa/cibuildwheel@v4.3.0
+        env:
+          CIBW_BUILD: ${{ matrix.build }}
+          CIBW_TEST_COMMAND: python -c "import pyttp; assert pyttp.is_valid_schedule(pyttp.canonical_schedule(4))"
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.publish && 'dist' || 'check' }}-wheels-${{ matrix.os }}
