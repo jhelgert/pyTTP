@@ -87,6 +87,20 @@ clang-format -i src/cpp/*.cpp src/cpp/*.hpp
 uv build                 # sdist + wheel in dist/
 ```
 
+### Benchmarks
+
+`benchmarks/bench_core.py` times the native core (objective, every neighborhood move, local search
+steps and descents; no MIP) on fixed random instances:
+
+```bash
+uv run python benchmarks/bench_core.py --output result.json
+```
+
+The `Benchmark` workflow builds the base and the head of every pull request on the same runner,
+runs the script alternately against both and posts a comparison table (`benchmarks/compare.py`) to
+the job summary. Slowdowns above 10% show up as warnings on the PR. Run-to-run noise is around
+3-4%. Pass `--fail-above PERCENT` to `compare.py` to turn regressions into failures.
+
 Local builds are compiled with `-march=native` (`/arch:AVX2` on MSVC). Release wheels turn this
 off (`-DPYTTP_NATIVE=OFF`, see `[tool.cibuildwheel]` in `pyproject.toml`), because they have to run
 on every CPU. To opt out locally, build with `CMAKE_ARGS="-DPYTTP_NATIVE=OFF" uv build`.

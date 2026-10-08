@@ -65,7 +65,7 @@ filterwarnings = ["error"]
 markers = ["slow: end-to-end tests that run the MIP solver"]
 
 [tool.ruff]
-src = ["src", "tests"]
+src = ["src", "tests", "benchmarks"]
 line-length = 100
 target-version = "py311"
 
@@ -76,7 +76,7 @@ known-first-party = ["pyttp", "helpers"]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "C4", "RUF", "NPY", "PT"]
 
 [tool.pyrefly]
-project-includes = ["src", "tests"]
+project-includes = ["src", "tests", "benchmarks"]
 search-path = ["src", "tests"]
 python-version = "3.11"
 # python-mip is annotated for its own operator syntax poorly, check our code against Any.
