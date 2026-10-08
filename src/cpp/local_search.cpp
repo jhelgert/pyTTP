@@ -23,7 +23,8 @@ class Scanner {
   }
 
   /// Apply `move` to a fresh copy of the start schedule and remember the
-  /// result if it is the best feasible improvement of `which` so far.
+  /// result if it is the best feasible improvement of `which` so far. Feasible means that the
+  /// stand limits hold and that there are no repeaters.
   template <typename Move>
   void try_move(Neighborhood which, Move&& move) {
     std::ranges::copy(start_.flat(), scratch_.begin());
@@ -33,7 +34,9 @@ class Scanner {
         .data = scratch_.data(), .rows = start_.rows, .cols = start_.cols};
     const auto idx = static_cast<std::size_t>(which);
     const std::int64_t value = objective(const_view, distances_);
-    if (value >= best_objective_[idx] || !satisfies_stand_limits(const_view, max_k_)) {
+    // The cheap objective test comes first; most candidates do not improve.
+    if (value >= best_objective_[idx] || !satisfies_stand_limits(const_view, max_k_) ||
+        has_repeaters(const_view)) {
       return;
     }
     best_objective_[idx] = value;

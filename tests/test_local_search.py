@@ -12,14 +12,14 @@ from pyttp import neighborhoods as nb
 
 
 def brute_force_best(schedule, d, max_k):
-    """Best feasible strictly improving neighbor per neighborhood, by direct enumeration."""
+    """Best feasible (stand limits, no repeaters) strictly improving neighbor per neighborhood."""
     n, rounds = schedule.shape
     current = pyttp.objective(schedule, d)
     best: dict[str, int] = {}
 
     def consider(name, neighbor):
         value = pyttp.objective(neighbor, d)
-        if value < current and pyttp.satisfies_stand_limits(neighbor, max_k):
+        if value < current and pyttp.is_feasible(neighbor, max_k):
             best[name] = min(best.get(name, value), value)
 
     for i, j in itertools.combinations(range(n), 2):

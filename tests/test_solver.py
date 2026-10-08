@@ -10,8 +10,7 @@ from helpers import NL4_DISTANCES, random_distances
 
 
 def check_solution(solution, d, max_k):
-    assert pyttp.is_valid_schedule(solution.schedule)
-    assert pyttp.satisfies_stand_limits(solution.schedule, max_k)
+    assert pyttp.is_feasible(solution.schedule, max_k)
     assert pyttp.objective(solution.schedule, d) == solution.objective
 
 

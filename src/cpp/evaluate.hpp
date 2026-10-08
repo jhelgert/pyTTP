@@ -13,6 +13,10 @@ namespace pyttp {
 /// `max_k` consecutive away games.
 [[nodiscard]] bool satisfies_stand_limits(ConstScheduleView schedule, int max_k) noexcept;
 
+/// True if some team plays the same opponent in two consecutive rounds ("repeater"), which the
+/// TTP forbids. Requires valid entries (see `has_valid_entries`).
+[[nodiscard]] bool has_repeaters(ConstScheduleView schedule) noexcept;
+
 /// True if the schedule has the shape (n, 2n - 2) and every entry is a non-zero
 /// team number in [-n, n]. This is the precondition for all other functions to
 /// access memory safely; it says nothing about the schedule being a tournament.
