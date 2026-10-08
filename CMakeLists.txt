@@ -25,7 +25,7 @@ find_package(Python 3.11 REQUIRED COMPONENTS Interpreter Development.Module
              OPTIONAL_COMPONENTS Development.SABIModule)
 find_package(nanobind CONFIG REQUIRED)
 
-# Python >= 3.12 can use the stable ABI (one wheel per platform, not per version).
+# Opt-in stable ABI wheels: set `wheel.py-api = "cp312"` in pyproject.toml (Python >= 3.12).
 if(DEFINED SKBUILD_SABI_VERSION AND SKBUILD_SABI_VERSION)
   set(PYTTP_STABLE_ABI STABLE_ABI)
 else()

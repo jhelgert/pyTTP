@@ -21,6 +21,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Topic :: Scientific/Engineering :: Mathematics",
     "Typing :: Typed",
 ]
@@ -37,7 +38,6 @@ dev = ["pytest>=8", "ruff", "pyrefly", "nanobind>=2.9"]
 minimum-version = "build-system.requires"
 cmake.version = ">=3.26"
 wheel.packages = ["src/pyttp"]
-wheel.py-api = "cp312" # stable ABI wheels for CPython >= 3.12, a regular wheel for 3.11
 build-dir = "build/{wheel_tag}"
 editable.mode = "redirect"
 sdist.include = ["src/cpp/*"]
@@ -83,9 +83,8 @@ python-version = "3.11"
 replace-imports-with-any = ["mip", "mip.*"]
 
 [tool.cibuildwheel]
-# The cp312 wheel is abi3 and covers 3.12+, so only two builds are needed.
-build = ["cp311-*", "cp312-*"]
-# musllinux is skipped because python-mip requires cbcbox, which has no musllinux wheels.
+build = ["cp311-*", "cp312-*", "cp313-*", "cp314-*", "cp315-*"]
+# No musllinux: python-mip requires cbcbox, which has no musllinux wheels (cibuildwheel builds it by default).
 skip = ["*-win32", "*-manylinux_i686", "*-win_arm64", "*-musllinux_*"]
 build-frontend = "build[uv]"
 test-requires = ["pytest"]

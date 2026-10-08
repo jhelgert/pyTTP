@@ -33,12 +33,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - ubuntu-24.04 # manylinux x86_64
-          - ubuntu-24.04-arm # manylinux aarch64
-          - macos-15-intel # macOS x86_64
-          - macos-15 # macOS arm64
-          - windows-2025 # Windows AMD64
+        # `publish` marks the one runner per platform whose wheels are uploaded to the index.
+        # The other runners build the same wheels on a different image to check they work there.
+        include:
+          - { os: ubuntu-24.04, publish: true } # manylinux x86_64
+          - { os: ubuntu-26.04, publish: false }
+          - { os: ubuntu-24.04-arm, publish: true } # manylinux aarch64
+          - { os: ubuntu-26.04-arm, publish: false }
+          - { os: macos-15-intel, publish: true } # macOS x86_64
+          - { os: macos-26-intel, publish: false }
+          - { os: macos-15, publish: true } # macOS arm64
+          - { os: macos-26, publish: false }
+          - { os: macos-latest, publish: false }
+          - { os: windows-2025, publish: true } # Windows AMD64
+          - { os: windows-2022, publish: false }
     steps:
       - uses: actions/checkout@v7
         with:
@@ -47,7 +55,7 @@ jobs:
       - uses: pypa/cibuildwheel@v4.3.0
       - uses: actions/upload-artifact@v7
         with:
-          name: dist-wheels-${{ matrix.os }}
+          name: ${{ matrix.publish && 'dist' || 'check' }}-wheels-${{ matrix.os }}
           path: wheelhouse/*.whl
 
   publish-testpypi:
