@@ -24,7 +24,7 @@ def test_deadline_without_limit_never_expires():
 def test_deadline_expires_and_never_goes_negative():
     deadline = Deadline(0.05)
     assert not deadline.expired
-    assert 0 < deadline.remaining() <= 0.05
+    assert 0 < deadline.remaining() <= 0.05 + 1e-6  # tolerate float rounding
     time.sleep(0.08)
     assert deadline.expired
     assert deadline.remaining() == 0.0
