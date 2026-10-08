@@ -122,23 +122,58 @@ def test_model_respects_the_stand_limit_inside_windows(rng):
 # -- adaptive neighborhood sizes -----------------------------------------------------------------
 
 
-def test_neighborhood_grows_after_a_quick_proof_and_shrinks_after_a_timeout():
+def test_neighborhood_does_not_grow_just_because_a_solve_was_cheap_by_default():
     kind = _lns._Neighborhood("window", size=4, low=2, high=6)
-    kind.adapt(solved_to_optimality=True, seconds=0.01, limit=2.0)
+    kind.adapt(True, seconds=0.001, limit=2.0, improved=True)
+    assert kind.size == 4
+
+
+def test_neighborhood_can_optionally_grow_after_a_very_cheap_proof():
+    kind = _lns._Neighborhood("window", size=4, low=2, high=6, grow_below=0.025)
+    kind.adapt(True, seconds=0.01, limit=2.0, improved=True)
     assert kind.size == 5
-    kind.adapt(solved_to_optimality=True, seconds=1.5, limit=2.0)  # optimal, but slow: stay
+
+
+def test_neighborhood_stays_when_the_solve_is_neither_cheap_nor_expensive():
+    kind = _lns._Neighborhood("window", size=4, low=2, high=6)
+    kind.adapt(True, seconds=0.2, limit=2.0, improved=True)  # 10% of the limit
+    assert kind.size == 4
+
+
+def test_neighborhood_shrinks_after_a_timeout_or_an_expensive_solve():
+    kind = _lns._Neighborhood("window", size=4, low=2, high=6)
+    kind.adapt(False, seconds=2.0, limit=2.0, improved=False)
+    assert kind.size == 3
+    kind.adapt(True, seconds=1.0, limit=2.0, improved=True)  # optimal but over 25% of the limit
+    assert kind.size == 2
+
+
+def test_neighborhood_grows_after_a_run_of_fruitless_solves():
+    kind = _lns._Neighborhood("subset", size=4, low=3, high=8, stall_grow=3)
+    for _ in range(2):
+        kind.adapt(True, seconds=0.1, limit=2.0, improved=False)
+    assert kind.size == 4
+    kind.adapt(True, seconds=0.1, limit=2.0, improved=False)
     assert kind.size == 5
-    kind.adapt(solved_to_optimality=False, seconds=2.0, limit=2.0)
+    assert kind.fruitless == 0
+
+
+def test_an_improvement_resets_the_fruitless_counter():
+    kind = _lns._Neighborhood("subset", size=4, low=3, high=8, stall_grow=3)
+    for _ in range(2):
+        kind.adapt(True, seconds=0.1, limit=2.0, improved=False)
+    kind.adapt(True, seconds=0.1, limit=2.0, improved=True)
+    kind.adapt(True, seconds=0.1, limit=2.0, improved=False)
     assert kind.size == 4
 
 
 def test_neighborhood_size_is_clamped():
-    kind = _lns._Neighborhood("subset", size=5, low=3, high=6)
+    kind = _lns._Neighborhood("subset", size=5, low=3, high=6, stall_grow=1)
     for _ in range(5):
-        kind.adapt(True, 0.0, 2.0)
+        kind.adapt(True, 0.0, 2.0, improved=False)
     assert kind.size == 6
     for _ in range(10):
-        kind.adapt(False, 2.0, 2.0)
+        kind.adapt(False, 2.0, 2.0, improved=False)
     assert kind.size == 3
 
 

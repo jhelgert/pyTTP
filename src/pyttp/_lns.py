@@ -229,19 +229,38 @@ class FreeCellModel:
 
 @dataclass
 class _Neighborhood:
-    """One kind of neighborhood together with its current size."""
+    """One kind of neighborhood together with its current size.
+
+    The size follows the cost of a solve, as a fraction of the per-solve time limit:
+
+    * it shrinks when the solve hit the limit or took more than ``shrink_above``;
+    * it grows when ``stall_grow`` solves in a row at this size found nothing: a neighborhood
+      that is too small to contain an improvement is useless however cheap it is;
+    * optionally (``grow_below`` > 0) it also grows after a very cheap proof of optimality.
+      This is off by default: growing as soon as solves are cheap made the neighborhoods big
+      and slow, and clearly gave worse schedules in the same time (NFL16, NFL32 and CIRC20,
+      every run). Small cheap neighborhoods give the most improvement per second.
+    """
 
     name: str
     size: int
     low: int
     high: int  # the size at which the neighborhood is the whole problem
+    grow_below: float = 0.0
+    shrink_above: float = 0.25
+    stall_grow: int = 10
+    fruitless: int = 0
 
-    def adapt(self, solved_to_optimality: bool, seconds: float, limit: float) -> None:
-        """Grow after a quick proof of optimality, shrink after hitting the time limit."""
-        if not solved_to_optimality:
+    def adapt(
+        self, solved_to_optimality: bool, seconds: float, limit: float, improved: bool
+    ) -> None:
+        self.fruitless = 0 if improved else self.fruitless + 1
+        if not solved_to_optimality or seconds > self.shrink_above * limit:
             self.size = max(self.low, self.size - 1)
-        elif seconds < 0.2 * limit:
+            self.fruitless = 0
+        elif seconds < self.grow_below * limit or self.fruitless >= self.stall_grow:
             self.size = min(self.high, self.size + 1)
+            self.fruitless = 0
 
 
 def make_neighborhoods(teams: int, rounds: int) -> list[_Neighborhood]:
@@ -292,8 +311,6 @@ def improve(
         status = model.solve(limit)
         seconds = time.monotonic() - began
         optimal = status == OptimizationStatus.OPTIMAL
-        kind.adapt(optimal, seconds, limit)
-
         improved = False
         if status in _SOLVED:
             candidate = model.new_schedule()
@@ -309,6 +326,7 @@ def improve(
             # Every game was free and the model was solved to optimality: nothing is better.
             logger.info("phase II (lns): proved optimality of %d", best.objective)
             return best
+        kind.adapt(optimal, seconds, limit, improved)
         stall = 0 if improved else stall + 1
 
         if step % polish_every == 0:
