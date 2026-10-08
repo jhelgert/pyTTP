@@ -50,11 +50,12 @@ def test_zero_time_limit_returns_the_canonical_solution_without_building_the_mip
 
 
 @pytest.mark.slow
-def test_time_limit_is_respected(rng):
-    # Without a limit this instance takes about a minute.
+@pytest.mark.parametrize("phase2", ["lns", "mip"])
+def test_time_limit_is_respected(rng, phase2):
+    # With the global MIP this instance takes about a minute without a limit.
     d = random_distances(rng, 8, symmetric=True)
     start = time.monotonic()
-    solution = pyttp.solve(d, max_k=3, time_limit=3.0)
+    solution = pyttp.solve(d, max_k=3, time_limit=3.0, phase2=phase2)
     elapsed = time.monotonic() - start
     assert elapsed < 12.0
     assert pyttp.is_feasible(solution.schedule, 3)
@@ -65,8 +66,8 @@ def test_time_limit_is_respected(rng):
 @pytest.mark.slow
 def test_a_generous_limit_gives_the_same_result_as_no_limit(rng):
     d = random_distances(rng, 6, symmetric=True)
-    unlimited = pyttp.solve(d, max_k=3)
-    limited = pyttp.solve(d, max_k=3, time_limit=600.0)
+    unlimited = pyttp.solve(d, max_k=3, phase2="mip", seed=0)
+    limited = pyttp.solve(d, max_k=3, phase2="mip", seed=0, time_limit=600.0)
     assert limited.objective == unlimited.objective
     np.testing.assert_array_equal(limited.schedule, unlimited.schedule)
 
@@ -139,4 +140,4 @@ def test_driver_never_trades_a_better_pool_entry_for_a_worse_mip_result(monkeypa
 
     monkeypatch.setattr(solver, "TTPMip", FakeMip)
     monkeypatch.setattr(solver, "_local_search", lambda *a, **k: next(pools))
-    assert pyttp.solve(d, max_k=3).objective == 100
+    assert pyttp.solve(d, max_k=3, phase2="mip").objective == 100

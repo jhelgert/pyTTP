@@ -10,16 +10,43 @@ Given `n` teams (`n` even) and a distance matrix `D`, where `D[i, j]` is the dis
 - no two teams play each other in two consecutive rounds, and
 - the total distance traveled by all teams is minimal. Every team starts and ends at home.
 
-The algorithm is a modified variant of the approach by
-[M. Goerigk and S. Westphal](https://link.springer.com/article/10.1007%2Fs10479-014-1586-6).
-Starting from a canonical schedule, a greedy local search (phase I) improves the solution. At a
-local minimum, a MIP heuristic (phase II) alternately re-optimizes the pairings and the home-away
-pattern to escape it, and phase I starts again. It stops when neither phase finds an improvement.
+The algorithm is a hybrid. Starting from a canonical schedule, a greedy local search in C++
+(phase I) improves the solution. Phase II then improves the result further and can be chosen with
+`phase2`:
+
+- **`"lns"` (default): large neighborhood search.** It repeatedly frees a few rounds or the games
+  among a few teams and re-optimizes just those games exactly with a small MIP. The model size
+  does not depend on the number of teams, so it works up to 30+ teams. Neighborhood sizes adapt
+  to the solve times; the local search polishes the result between rounds.
+- **`"mip"`: global MIP.** The approach of
+  [M. Goerigk and S. Westphal](https://link.springer.com/article/10.1007%2Fs10479-014-1586-6):
+  alternately optimize the pairings and the home-away pattern with one MIP over the whole
+  problem. It only fits small instances, the model has millions of rows for 32 teams.
 
 The local search is implemented in C++23 and exposed with [nanobind](https://github.com/wjakob/nanobind).
-The MIP is solved by [HiGHS](https://highs.dev) through [python-mip](https://github.com/coin-or/python-mip),
-so no commercial solver is needed. Most of the runtime is spent in phase II; a larger `max_mip_gap`
-trades solution quality for speed.
+The MIPs are solved by [HiGHS](https://highs.dev) through [python-mip](https://github.com/coin-or/python-mip),
+so no commercial solver is needed.
+
+### Solution quality
+
+Measured with `benchmarks/bench_quality.py` on the classic benchmark instances (see
+`benchmarks/instances`), `max_k=3`, seed 0, one run each. The gap is relative to the best known
+upper bound of the [RobinX repository](https://www.sportscheduling.ugent.be/RobinX/travelRepo.php).
+
+| Instance | Teams | Time limit | Objective | Best known | Gap |
+|---|---:|---:|---:|---:|---:|
+| NL4 | 4 | none | 8,276 | 8,276 | 0% (proven optimal) |
+| NL12 | 12 | 30 s | 133,682 | 110,729 | 20.7% |
+| NL16 | 16 | 30 s | 346,768 | 261,687 | 32.5% |
+| NFL16 | 16 | 60 s | 297,529 | 231,483 | 28.5% |
+| NFL24 | 24 | 60 s | 570,044 | 463,657 | 22.9% |
+| NFL32 | 32 | 60 s | 1,281,078 | 914,620 | 40.1% |
+
+This is a practical heuristic, not a state-of-the-art solver: the best known values come from
+specialised algorithms that run for hours. On small instances the search stalls in a local optimum
+(it only accepts improvements) and further time does not help. For comparison, the global MIP
+mode (`phase2="mip"`) ends 46.2% above the best known on NFL16 in 60 s (LNS: 28.5%), and its model
+is too large to be useful for 32 teams.
 
 ## Install
 
@@ -69,7 +96,7 @@ and a negative sign an away game.
 
 | | |
 |---|---|
-| `pyttp.solve(distances, max_k=3, max_phase1_runs=10, max_mip_gap=0.05, time_limit=None)` | Run the hybrid heuristic, returns a `Solution(objective, schedule)`. With `time_limit` (seconds) it returns the best schedule found when the budget is used up. |
+| `pyttp.solve(distances, max_k=3, max_phase1_runs=10, max_mip_gap=0.05, time_limit=None, phase2="lns", seed=None, lns_patience=100)` | Run the hybrid heuristic, returns a `Solution(objective, schedule)`. `time_limit` (seconds): return the best schedule found when the budget is used up. `phase2`: `"lns"` or `"mip"`. `seed`: random neighborhood choice of `"lns"`. `lns_patience`: without a time limit, stop after this many fruitless neighborhoods. `max_mip_gap` only affects `"mip"`. |
 | `pyttp.objective(schedule, distances)` | Total travel distance of a schedule. |
 | `pyttp.satisfies_stand_limits(schedule, max_k)` | Checks the home stand and road trip limit. |
 | `pyttp.has_repeaters(schedule)` | True if some pair of teams plays in two consecutive rounds (forbidden). |

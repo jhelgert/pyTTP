@@ -31,7 +31,7 @@ Homepage = "https://github.com/jhelgert/pyTTP"
 Issues = "https://github.com/jhelgert/pyTTP/issues"
 
 [dependency-groups]
-dev = ["pytest>=8", "ruff", "pyrefly", "nanobind>=2.9"]
+dev = ["pytest>=8", "pytest-timeout>=2.3", "ruff", "pyrefly", "nanobind>=2.9"]
 
 [tool.scikit-build]
 minimum-version = "build-system.requires"
@@ -60,6 +60,10 @@ cache-keys = [
 minversion = "8.0"
 testpaths = ["tests"]
 addopts = ["-ra", "--strict-markers", "--strict-config"]
+# A hanging test fails with its name and a stack dump instead of stalling CI (the slowest test
+# takes about 15 s).
+timeout = 120
+timeout_method = "thread"
 filterwarnings = ["error"]
 markers = ["slow: end-to-end tests that run the MIP solver"]
 
@@ -86,7 +90,7 @@ build = ["cp311-*", "cp312-*", "cp313-*", "cp314-*"]
 # No musllinux: python-mip requires cbcbox, which has no musllinux wheels (cibuildwheel builds it by default).
 skip = ["*-win32", "*-manylinux_i686", "*-win_arm64", "*-musllinux_*"]
 build-frontend = "build[uv]"
-test-requires = ["pytest"]
+test-requires = ["pytest", "pytest-timeout"]
 test-command = "pytest {project}/tests"
 # Wheels must run on every CPU of their platform: no -march=native.
 environment = { CMAKE_ARGS = "-DPYTTP_NATIVE=OFF" }
