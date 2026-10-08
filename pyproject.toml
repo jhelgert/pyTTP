@@ -85,7 +85,8 @@ replace-imports-with-any = ["mip", "mip.*"]
 [tool.cibuildwheel]
 # The cp312 wheel is abi3 and covers 3.12+, so only two builds are needed.
 build = ["cp311-*", "cp312-*"]
-skip = ["*-win32", "*-manylinux_i686", "*-musllinux_i686", "*-win_arm64"]
+# musllinux is skipped because python-mip requires cbcbox, which has no musllinux wheels.
+skip = ["*-win32", "*-manylinux_i686", "*-win_arm64", "*-musllinux_*"]
 build-frontend = "build[uv]"
 test-requires = ["pytest"]
 test-command = "pytest {project}/tests"
