@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.2.0
       - name: ruff
         run: |
           uv run --no-project --with ruff ruff check .
@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.2.0
       - name: Configure (exports compile_commands.json)
         run: |
           uv sync
@@ -55,7 +55,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # setuptools-scm needs the tags
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.2.0
       - name: Install (builds the extension)
         run: uv sync --python ${{ matrix.python }}
         env:
