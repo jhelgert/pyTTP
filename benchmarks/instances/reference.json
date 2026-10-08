@@ -1,0 +1,127 @@
+{
+ "nl4": {
+  "teams": 4,
+  "lower_bound": 8276,
+  "best_known": 8276
+ },
+ "nl6": {
+  "teams": 6,
+  "lower_bound": 23916,
+  "best_known": 23916
+ },
+ "nl8": {
+  "teams": 8,
+  "lower_bound": 39721,
+  "best_known": 39721
+ },
+ "nl10": {
+  "teams": 10,
+  "lower_bound": 59436,
+  "best_known": 59436
+ },
+ "nl12": {
+  "teams": 12,
+  "lower_bound": 108629,
+  "best_known": 110729
+ },
+ "nl14": {
+  "teams": 14,
+  "lower_bound": 183354,
+  "best_known": 188728
+ },
+ "nl16": {
+  "teams": 16,
+  "lower_bound": 249500,
+  "best_known": 261687
+ },
+ "circ4": {
+  "teams": 4,
+  "lower_bound": 20,
+  "best_known": 20
+ },
+ "circ6": {
+  "teams": 6,
+  "lower_bound": 64,
+  "best_known": 64
+ },
+ "circ8": {
+  "teams": 8,
+  "lower_bound": 132,
+  "best_known": 132
+ },
+ "circ10": {
+  "teams": 10,
+  "lower_bound": 242,
+  "best_known": 242
+ },
+ "circ12": {
+  "teams": 12,
+  "lower_bound": 388,
+  "best_known": 400
+ },
+ "circ14": {
+  "teams": 14,
+  "lower_bound": 588,
+  "best_known": 616
+ },
+ "circ16": {
+  "teams": 16,
+  "lower_bound": 846,
+  "best_known": 898
+ },
+ "circ18": {
+  "teams": 18,
+  "lower_bound": 1188,
+  "best_known": 1268
+ },
+ "circ20": {
+  "teams": 20,
+  "lower_bound": 1600,
+  "best_known": 1724
+ },
+ "nfl16": {
+  "teams": 16,
+  "lower_bound": 223822,
+  "best_known": 231483
+ },
+ "nfl18": {
+  "teams": 18,
+  "lower_bound": 272834,
+  "best_known": 282258
+ },
+ "nfl20": {
+  "teams": 20,
+  "lower_bound": 316721,
+  "best_known": 332041
+ },
+ "nfl22": {
+  "teams": 22,
+  "lower_bound": 378813,
+  "best_known": 400636
+ },
+ "nfl24": {
+  "teams": 24,
+  "lower_bound": 431226,
+  "best_known": 463657
+ },
+ "nfl26": {
+  "teams": 26,
+  "lower_bound": 495982,
+  "best_known": 536792
+ },
+ "nfl28": {
+  "teams": 28,
+  "lower_bound": 561175,
+  "best_known": 592321
+ },
+ "nfl30": {
+  "teams": 30,
+  "lower_bound": 688875,
+  "best_known": 739697
+ },
+ "nfl32": {
+  "teams": 32,
+  "lower_bound": 836031,
+  "best_known": 914620
+ }
+}

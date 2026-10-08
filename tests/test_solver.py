@@ -15,9 +15,10 @@ def check_solution(solution, d, max_k):
 
 
 @pytest.mark.slow
-def test_solve_nl4_finds_the_optimum(caplog):
+@pytest.mark.parametrize("phase2", ["lns", "mip"])
+def test_solve_nl4_finds_the_optimum(caplog, phase2):
     with caplog.at_level(logging.INFO, logger="pyttp"):
-        solution = pyttp.solve(NL4_DISTANCES, max_k=3, max_mip_gap=0.0)
+        solution = pyttp.solve(NL4_DISTANCES, max_k=3, max_mip_gap=0.0, phase2=phase2)
     check_solution(solution, NL4_DISTANCES, 3)
     assert solution.objective == 8276
     assert any("finished" in record.message for record in caplog.records)
@@ -27,7 +28,7 @@ def test_solve_nl4_finds_the_optimum(caplog):
 def test_solve_never_does_worse_than_the_canonical_schedule(rng):
     d = random_distances(rng, 6, symmetric=True)
     start = pyttp.objective(pyttp.canonical_schedule(6), d)
-    solution = pyttp.solve(d, max_k=3, max_phase1_runs=3)
+    solution = pyttp.solve(d, max_k=3, max_phase1_runs=3, time_limit=3.0, seed=0)
     check_solution(solution, d, 3)
     assert solution.objective <= start
 
