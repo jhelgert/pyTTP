@@ -80,10 +80,10 @@ def solve(
         phase2: How phase II improves the schedule found by the local search.
 
             * ``"lns"`` (default): large neighborhood search. Repeatedly re-optimizes the
-              games in a few rounds or among a few teams with a small MIP whose size does not
-              depend on the number of teams. Works up to 30+ teams. Without ``time_limit`` it
-              stops after ``lns_patience`` neighborhoods in a row without improvement, or as
-              soon as optimality is proven (small instances).
+              games in a few rounds or among a few teams with a small MIP (a few hundred
+              binaries, however many teams there are). Works up to 30+ teams. Without
+              ``time_limit`` it stops after ``lns_patience`` neighborhoods in a row without
+              improvement, or as soon as optimality is proven (small instances).
             * ``"mip"``: alternately optimizes the pairings and the home-away pattern with
               one global MIP. It only fits small instances: the model has millions of rows
               for 32 teams.

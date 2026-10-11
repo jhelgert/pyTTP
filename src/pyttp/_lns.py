@@ -1,9 +1,10 @@
 """Large neighborhood search (phase II): re-optimize small parts of the schedule exactly.
 
 Each step frees a few cells of a feasible schedule, rebuilds a small MIP for just the games in
-those cells and solves it. The model only contains the free games, so its size does not depend on
-the number of teams; everything else is a constant. This is what makes 30+ teams tractable, where
-the global model of ``_mip.py`` has millions of rows.
+those cells and solves it. The model only contains the free games and everything else is a
+constant, so it stays small: a few hundred binaries even for 32 teams (a window grows linearly
+with the number of teams, a subset not at all). This is what makes 30+ teams tractable, where the
+global model of ``_mip.py`` has millions of rows.
 
 Two kinds of neighborhoods are used:
 
