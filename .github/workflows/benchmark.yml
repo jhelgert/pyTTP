@@ -1,31 +1,16 @@
 name: Benchmark
 
-# Compares the performance of the native core between the base and the head of a change.
-# Both versions are built and measured on the same runner, in alternating rounds, so the
-# result does not depend on how fast the runner happens to be.
-
+# Compares the native core of the tagged commit with the previous release (the previous v* tag).
+# Both versions are built and measured on the same runner, in alternating rounds, so the result
+# does not depend on how fast the runner happens to be.
+#
+# Has no triggers of its own: release.yml calls it when a release is published or a v* tag is
+# pushed (and only for commits on master).
 on:
-  pull_request:
-    paths:
-      - "src/**"
-      - "CMakeLists.txt"
-      - "pyproject.toml"
-      - "benchmarks/**"
-      - ".github/workflows/benchmark.yml"
-  push:
-    branches: [master]
-  workflow_dispatch:
-    inputs:
-      base:
-        description: "Git ref to compare against (default: previous commit)"
-        required: false
+  workflow_call:
 
 permissions:
   contents: read
-
-concurrency:
-  group: benchmark-${{ github.ref }}
-  cancel-in-progress: true
 
 env:
   # Same flags as the release wheels. Pretend a version so that shallow metadata is not an issue.
@@ -44,22 +29,16 @@ jobs:
 
       - uses: astral-sh/setup-uv@v10.2.0
 
-      - name: Determine base commit
+      - name: Determine the base commit (the previous release)
         id: base
-        env:
-          EVENT: ${{ github.event_name }}
-          PR_BASE: ${{ github.event.pull_request.base.sha }}
-          INPUT_BASE: ${{ inputs.base }}
         run: |
-          if [ "$EVENT" = "pull_request" ]; then
-            base="$PR_BASE"
-          elif [ -n "$INPUT_BASE" ]; then
-            base="$(git rev-parse "$INPUT_BASE")"
-          else
-            base="$(git rev-parse HEAD~1 2>/dev/null || true)"
+          previous="$(git describe --tags --abbrev=0 --match 'v*' "${GITHUB_SHA}^" 2>/dev/null || true)"
+          base=""
+          if [ -n "$previous" ]; then
+            base="$(git rev-parse "${previous}^{commit}")"
           fi
           echo "sha=$base" >> "$GITHUB_OUTPUT"
-          echo "Base commit: ${base:-<none>}"
+          echo "Previous release: ${previous:-<none>} (${base:-no baseline})"
 
       - name: Build head
         run: |

@@ -125,14 +125,29 @@ steps and descents; no MIP) on fixed random instances:
 uv run python benchmarks/bench_core.py --output result.json
 ```
 
-The `Benchmark` workflow builds the base and the head of every pull request on the same runner,
-runs the script alternately against both and posts a comparison table (`benchmarks/compare.py`) to
-the job summary. Slowdowns above 10% show up as warnings on the PR. Run-to-run noise is around
-3-4%. Pass `--fail-above PERCENT` to `compare.py` to turn regressions into failures.
+When a release is made, the `Benchmark` workflow builds the released commit and the previous
+release (the previous `v*` tag) on the same runner, runs the script alternately against both and
+posts a comparison table (`benchmarks/compare.py`) to the job summary. Slowdowns above 10% show up
+as warnings. Run-to-run noise is around 3-4%. Pass `--fail-above PERCENT` to `compare.py` to turn
+regressions into failures. For the first release there is no baseline and only absolute numbers
+are shown.
 
 Local builds are compiled with `-march=native` (`/arch:AVX2` on MSVC). Release wheels turn this
 off (`-DPYTTP_NATIVE=OFF`, see `[tool.cibuildwheel]` in `pyproject.toml`), because they have to run
 on every CPU. To opt out locally, build with `CMAKE_ARGS="-DPYTTP_NATIVE=OFF" uv build`.
 
-The version is derived from git tags (`git tag v0.1.0`). Pushing a `v*` tag builds all wheels with
-cibuildwheel and uploads them to TestPyPI via Trusted Publishing.
+### Continuous integration and releases
+
+The workflows do not run for pull requests or for pushes to a branch. Everything runs in one
+pipeline (`.github/workflows/release.yml`) when a **release is published or a `v*` tag is pushed**,
+and only if the tagged commit is on `master`:
+
+1. lint, type check and `clang-tidy` (`ci.yml`) and the tests on Linux, macOS and Windows,
+2. the benchmark against the previous release (`benchmark.yml`),
+3. the source distribution and the wheels (cibuildwheel),
+4. the upload to TestPyPI via Trusted Publishing, once everything above has succeeded.
+
+Run the checks yourself before you merge: `uv run pytest`, `uv run ruff check .`,
+`uv run pyrefly check` and `clang-format --dry-run --Werror src/cpp/*`.
+
+The version is derived from git tags (`git tag v0.1.0`).
