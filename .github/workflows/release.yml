@@ -1,15 +1,15 @@
-name: Build wheels and publish
+name: Release
 
+# The only workflow with triggers. Nothing runs for pull requests or for pushes to a branch: the
+# whole pipeline (checks, benchmark, wheels, upload) runs when a release is published or a v* tag
+# is pushed, and only if the tagged commit is on master.
 on:
   push:
     tags: ["v*"]
-  pull_request: # only a smoke build, see `wheels-smoke`
-    paths:
-      - ".github/workflows/release.yml"
-      - "pyproject.toml"
-      - "CMakeLists.txt"
-  workflow_dispatch:
+  release:
+    types: [published]
 
+# Publishing a release together with a new tag fires both events; keep a single run per tag.
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: true
@@ -18,7 +18,34 @@ permissions:
   contents: read
 
 jobs:
+  # A tag has no branch, so check that the tagged commit is part of master.
+  on-master:
+    name: tagged commit is on master
+    # The release event is not filtered by tag name like the push trigger is.
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Check that ${{ github.sha }} is reachable from master
+        run: |
+          git fetch --no-tags origin master
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/master; then
+            echo "::error::$GITHUB_REF points to $GITHUB_SHA, which is not on master. Releases are only built from master."
+            exit 1
+          fi
+
+  checks:
+    needs: on-master
+    uses: ./.github/workflows/ci.yml
+
+  benchmark:
+    needs: on-master
+    uses: ./.github/workflows/benchmark.yml
+
   sdist:
+    needs: on-master
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -31,21 +58,8 @@ jobs:
           name: dist-sdist
           path: dist/*.tar.gz
 
-  # Pull requests only check that the packaging still builds: one platform, one Python.
-  wheels-smoke:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - uses: pypa/cibuildwheel@v4.3.0
-        env:
-          CIBW_BUILD: cp312-manylinux_x86_64
-
-  # Tags and manual runs build everything.
   wheels:
-    if: github.event_name != 'pull_request'
+    needs: on-master
     name: wheels (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
@@ -79,9 +93,9 @@ jobs:
           name: ${{ matrix.publish && 'dist' || 'check' }}-wheels-${{ matrix.os }}
           path: wheelhouse/*.whl
 
+  # Only after every check and every build succeeded.
   publish-testpypi:
-    needs: [sdist, wheels]
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [checks, sdist, wheels]
     runs-on: ubuntu-24.04
     environment:
       name: testpypi
