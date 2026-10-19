@@ -4,8 +4,6 @@ on:
   push:
     branches: [master]
   pull_request:
-  schedule:
-    - cron: "0 4 * * 1" # weekly, full matrix
   workflow_dispatch:
 
 concurrency:
