@@ -1,9 +1,9 @@
 """Regenerate the logo (docs/images/logo-light.svg and logo-dark.svg).
 
 The logo is a map of the contiguous United States with 19 NFL cities (the benchmark family of this
-project) connected by a Delaunay network, which stands for the distance matrix. One home city glows
-and its road trip is highlighted: the trip of one team is exactly what the traveling tournament
-problem minimizes.
+project) connected by a Delaunay network, which stands for the distance matrix. The home city is a
+football that glows, and its road trip is highlighted: the trip of one team is exactly what the
+traveling tournament problem minimizes.
 
 Inputs, downloaded once and cached in ~/.cache/pyttp-logo:
 
@@ -13,7 +13,7 @@ Inputs, downloaded once and cached in ~/.cache/pyttp-logo:
 
 matplotlib and scipy are not dependencies of pyttp. Run
 
-    uv run --with matplotlib --with scipy python docs/make_logo.py
+    uv run --with matplotlib --with scipy python docs/make_logo.py [--yard-lines]
 """
 
 from __future__ import annotations
@@ -65,6 +65,8 @@ CITIES = {
     "Boston": (42.36, -71.06),
 }
 HOME = "Kansas City"
+BALL_LENGTH = 150.0  # in logo units (the map is 1000 wide)
+BALL_ANGLE = 25.0  # degrees: dynamic, and leaves the nearest road-trip leg a visible arrow
 TRIP = ["Kansas City", "Minneapolis", "Detroit", "Atlanta", "Kansas City"]  # 3 away games
 
 THEMES = {
@@ -78,6 +80,9 @@ THEMES = {
         "accent": "#f76707",
         "glow": "#ffa94d",
         "glow_alpha": 0.022,
+        "ball": "#9c4a1a",
+        "ball_edge": "#4e230a",
+        "lace": "#ffffff",
         "preview_bg": ["#ffffff"],
     },
     "dark": {
@@ -90,6 +95,9 @@ THEMES = {
         "accent": "#ffa94d",
         "glow": "#ffa94d",
         "glow_alpha": 0.035,
+        "ball": "#c96f27",
+        "ball_edge": "#5a2a0c",
+        "lace": "#fff6e8",
         "preview_bg": ["#0d1117", "#22272e"],
     },
 }
@@ -210,7 +218,106 @@ def add_text(ax, text: str, size: float, origin, color: str, font: FontPropertie
     return float(glyphs.get_extents().x1)
 
 
-def draw_logo(theme: str, preview_bg: str | None, path: Path) -> None:
+def football_outline(center, length: float, angle: float, grow: float = 1.0) -> MplPath:
+    """Closed outline of an American football (a parabolic lens) rotated by `angle` degrees."""
+    half = length * grow / 2
+    control = 0.50 * length * grow / 2 / 0.75  # a cubic reaches 3/4 of its control height
+    local = np.array(
+        [
+            (-half, 0),
+            (-half / 3, control),
+            (half / 3, control),
+            (half, 0),
+            (half / 3, -control),
+            (-half / 3, -control),
+            (-half, 0),
+            (-half, 0),
+        ]
+    )
+    codes = [MplPath.MOVETO] + [MplPath.CURVE4] * 6 + [MplPath.CLOSEPOLY]
+    return MplPath(rotate(local, angle) + center, codes)
+
+
+def rotate(points: np.ndarray, angle: float) -> np.ndarray:
+    a = math.radians(angle)
+    matrix = np.array([[math.cos(a), -math.sin(a)], [math.sin(a), math.cos(a)]])
+    return points @ matrix.T
+
+
+def draw_football(ax, center, length: float, angle: float, colors: dict) -> None:
+    """The football: leather body, two white stripes near the tips and the laces on top."""
+    # a ring in the colour of the land separates the ball from the network lines below
+    ax.add_patch(
+        PathPatch(
+            football_outline(center, length, angle, grow=1.10),
+            facecolor=colors["land"],
+            edgecolor="none",
+            zorder=5,
+        )
+    )
+    ax.add_patch(
+        PathPatch(
+            football_outline(center, length, angle),
+            facecolor=colors["ball"],
+            edgecolor=colors["ball_edge"],
+            linewidth=1.4,
+            joinstyle="round",
+            zorder=6,
+        )
+    )
+    half, width = length / 2, 0.50 * length
+
+    def half_width(x: float) -> float:
+        return width / 2 * (1 - (x / half) ** 2)
+
+    strokes = []
+    for x in (-0.6 * half, 0.6 * half):  # the two stripes
+        w = half_width(x) * 0.97
+        strokes.append(([(x, -w), (x, w)], 2.0))
+    strokes.append(([(-0.3 * half, 0), (0.3 * half, 0)], 2.0))  # lace ridge
+    for x in np.linspace(-0.21 * half, 0.21 * half, 4):  # the cross laces
+        strokes.append(([(x, -0.085 * length), (x, 0.085 * length)], 1.8))
+    for points, linewidth in strokes:
+        placed = rotate(np.array(points, dtype=float), angle) + center
+        ax.plot(
+            placed[:, 0],
+            placed[:, 1],
+            color=colors["lace"],
+            linewidth=linewidth,
+            solid_capstyle="round",
+            zorder=7,
+        )
+
+
+def ball_radius(length: float, angle: float, direction: np.ndarray, gap: float = 10.0) -> float:
+    """Distance from the football's center to its edge in `direction`, plus a small gap.
+
+    The ball is a lens: its extent depends on the direction, so arrows that leave across the slim
+    side can start much closer than arrows pointing along the long axis.
+    """
+    local = rotate(np.array([direction / np.hypot(*direction)]), -angle)[0]
+    half, width = length / 2, 0.50 * length
+    # points t * local on the boundary |y| = (width / 2) * (1 - (x / half) ** 2)
+    lo, hi = 0.0, half
+    for _ in range(40):
+        t = (lo + hi) / 2
+        x, y = t * local
+        inside = abs(y) <= width / 2 * (1 - (x / half) ** 2) if abs(x) <= half else False
+        lo, hi = (t, hi) if inside else (lo, t)
+    return lo * 1.10 + gap  # 1.10: the ring around the ball
+
+
+def vertical_chords(polygon: np.ndarray, x: float) -> list[tuple[float, float]]:
+    """Segments of the vertical line at `x` that lie inside the polygon (even-odd rule)."""
+    ys = []
+    for (x1, y1), (x2, y2) in zip(polygon, np.roll(polygon, -1, axis=0), strict=True):
+        if (x1 <= x < x2) or (x2 <= x < x1):
+            ys.append(y1 + (x - x1) / (x2 - x1) * (y2 - y1))
+    ys.sort()
+    return list(zip(ys[0::2], ys[1::2], strict=False))
+
+
+def draw_logo(theme: str, preview_bg: str | None, path: Path, yard_lines: bool = False) -> None:
     colors = THEMES[theme]
     nation = decode_nation(fetch(ATLAS_URL, "nation-10m.json"))
     outline_xy = simplify(albers(nation[:, 0], nation[:, 1]), 0.0011)
@@ -247,11 +354,22 @@ def draw_logo(theme: str, preview_bg: str | None, path: Path) -> None:
             outline_path,
             facecolor=colors["land"],
             edgecolor=colors["line"],
-            linewidth=3.0,
+            linewidth=1.8,
             joinstyle="round",
             zorder=1,
         )
     )
+    if yard_lines:  # a football field: a faint line every "ten yards"
+        for x in np.arange(text_block + 50, text_block + 1000, 100):
+            for low_y, high_y in vertical_chords(outline, float(x)):
+                ax.plot(
+                    [x, x],
+                    [low_y, high_y],
+                    color=colors["line"],
+                    alpha=0.2,
+                    linewidth=1.2,
+                    zorder=1.5,
+                )
     for a, b in network(points, outline_path):
         ax.plot(
             [points[a][0], points[b][0]],
@@ -275,7 +393,15 @@ def draw_logo(theme: str, preview_bg: str | None, path: Path) -> None:
                 zorder=3,
             )
         )
-    # road trip: three away games and back home
+    # road trip: three away games and back home. Arrows end at the edge of the football.
+    unit_to_pt = fig.get_figwidth() * 72 / (right - left)  # points per logo unit (0.4)
+
+    def shrink(city: str, other: str) -> float:
+        if city != HOME:
+            return 13.0
+        direction = points[index[other]] - points[index[city]]
+        return ball_radius(BALL_LENGTH, BALL_ANGLE, direction) * unit_to_pt
+
     for start, end in itertools.pairwise(TRIP):
         ax.add_patch(
             FancyArrowPatch(
@@ -283,8 +409,8 @@ def draw_logo(theme: str, preview_bg: str | None, path: Path) -> None:
                 points[index[end]],
                 arrowstyle="-|>",
                 mutation_scale=26,
-                shrinkA=13,
-                shrinkB=13,
+                shrinkA=shrink(start, end),
+                shrinkB=shrink(end, start),
                 linewidth=5.0,
                 color=colors["accent"],
                 capstyle="round",
@@ -293,9 +419,12 @@ def draw_logo(theme: str, preview_bg: str | None, path: Path) -> None:
             )
         )
     for name, p in zip(names, points, strict=True):
+        if name == HOME:
+            draw_football(ax, p, BALL_LENGTH, BALL_ANGLE, colors)
+            continue
         on_trip = name in TRIP
-        radius = 17 if name == HOME else 13 if on_trip else 10.5
-        halo = 2.5 if name == HOME else 4.5
+        radius = 13 if on_trip else 10.5
+        halo = 4.5
         ax.add_patch(Circle(p, radius + halo, facecolor=colors["land"], edgecolor="none", zorder=5))
         ax.add_patch(
             Circle(
@@ -311,8 +440,7 @@ def draw_logo(theme: str, preview_bg: str | None, path: Path) -> None:
     font = FontProperties(fname=str(fetch(FONT_URL, "VarelaRound-Regular.ttf")))
     x, y, size = 6.0, map_height / 2 - 10, 235.0
     x += add_text(ax, "py", size, (x, y), colors["text"], font) + 4
-    x += add_text(ax, "tt", size, (x, y), colors["accent"], font) + 4
-    add_text(ax, "p", size, (x, y), colors["text"], font)
+    add_text(ax, "ttp", size, (x, y), colors["accent"], font)
     add_text(ax, "traveling", 50, (24.0, y - 105), colors["muted"], font)
     add_text(ax, "tournament problem", 50, (24.0, y - 170), colors["muted"], font)
 
@@ -328,9 +456,13 @@ def draw_logo(theme: str, preview_bg: str | None, path: Path) -> None:
 
 
 if __name__ == "__main__":
+    import sys
+
+    # `--yard-lines` adds a faint line every "ten yards" across the map, like a football field.
+    with_yard_lines = "--yard-lines" in sys.argv[1:]
     matplotlib.rcParams["svg.fonttype"] = "path"
     matplotlib.rcParams["svg.hashsalt"] = "pyttp-logo"
     OUT.mkdir(parents=True, exist_ok=True)
     for theme in THEMES:
-        draw_logo(theme, None, OUT / f"logo-{theme}.svg")
+        draw_logo(theme, None, OUT / f"logo-{theme}.svg", yard_lines=with_yard_lines)
     print("written", *(OUT / f"logo-{t}.svg" for t in THEMES))
