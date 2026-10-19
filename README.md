@@ -1,6 +1,14 @@
-# pyttp
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/logo-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/images/logo-light.svg">
+    <img alt="pyttp" src="docs/images/logo-light.svg" width="640">
+  </picture>
+</h1>
 
-🏈 A hybrid local search and MIP heuristic for the **t**raveling **t**ournament **p**roblem.
+<p align="center">
+  🏈 A hybrid local search and MIP heuristic for the <b>t</b>raveling <b>t</b>ournament <b>p</b>roblem.
+</p>
 
 Given `n` teams (`n` even) and a distance matrix `D`, where `D[i, j]` is the distance from team
 `i` to team `j`, find a
